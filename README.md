@@ -150,45 +150,47 @@ fit in flash.
 
 ### Local Web UF2 Builder
 
-The easiest way to make a custom sample build is the experimental local web
-builder. It gives you a browser interface for preparing the samples, but the
-actual firmware build still happens locally on your computer.
+The easiest way to make a custom sample build is the local web builder. It gives
+you a browser page for preparing the samples, then builds a complete UF2 on your
+own computer.
 
-First open a command line app and move into the folder where you saved or cloned
-`Punk Confusion`. The exact path will be different on your computer, so adjust
-the examples below to match your own folder names.
+First, open a command line app and move into the folder where you saved or
+cloned `Punk Confusion`. The folder path will be different on each computer, so
+use the examples below as a guide and change the path to match your own setup.
 
-On macOS, open `Terminal` and use something like:
-
-```sh
-cd "$HOME/coding/GitHub/Punk Confusion"
-```
-
-On Windows, open `PowerShell` and use something like:
-
-```powershell
-cd "$HOME\Documents\GitHub\Punk Confusion"
-```
-
-On Linux, open `Terminal` and use something like:
+On macOS, open `Terminal` and use a command like this:
 
 ```sh
 cd "$HOME/GitHub/Punk Confusion"
 ```
 
-Once your command line is in the `Punk Confusion` folder, start the builder:
+On Windows, open `PowerShell` and use a command like this:
+
+```powershell
+cd "$HOME\Documents\GitHub\Punk Confusion"
+```
+
+On Linux, open `Terminal` and use a command like this:
+
+```sh
+cd "$HOME/GitHub/Punk Confusion"
+```
+
+When the command line is in the `Punk Confusion` folder, start the builder:
 
 ```sh
 make webui
 ```
 
-Then open:
+Leave that command line window open. It is running the local builder.
+
+Then open this address in your web browser:
 
 ```text
 http://127.0.0.1:8765/web/
 ```
 
-If `make` is not available, run the server directly instead:
+If your computer says `make` is not available, use this command instead:
 
 ```sh
 python3 tools/web_uf2_server.py
@@ -205,9 +207,9 @@ Use the page like this:
 7. The browser downloads `punk_confusion_custom.uf2`.
 
 The browser converts each source file to mono 24 kHz signed 16-bit PCM and
-normalises it to about `-6 dBFS`. The Python backend receives those processed
-WAVs, regenerates `VocalSamples.h`, runs CMake, and returns the finished UF2.
-The first build may take longer if the Pico SDK has to be fetched.
+normalises it to about `-6 dBFS`. The local builder receives those processed
+WAVs, regenerates `VocalSamples.h`, runs the firmware build, and returns the
+finished UF2. The first build may take longer if the Pico SDK has to be fetched.
 
 The local build process replaces the four files in `samples/` and regenerates
 `VocalSamples.h` before compiling. Commit or copy any sample set you want to
@@ -226,7 +228,7 @@ You can use a different local port if needed:
 make webui WEB_PORT=9000
 ```
 
-If you do not want to use the local web backend, the page can still download
+If you do not want to build a UF2 straight away, the page can also download
 processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
 useful if you want to audition or archive the exact card-ready files before
 building.
