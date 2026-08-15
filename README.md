@@ -148,6 +148,12 @@ Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
 
+There is also an experimental browser tool in `web/index.html`. It lets you
+drop four audio files into the venue slots, previews the converted samples,
+normalises them to about `-6 dBFS`, and downloads a replacement
+`VocalSamples.h`. The web tool still follows the same firmware flow: replace
+`VocalSamples.h`, rebuild the UF2, then flash the card.
+
 ## Jack Map
 
 | Jack | Role |
