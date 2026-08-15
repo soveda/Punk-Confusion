@@ -42,23 +42,7 @@ if(NOT DEFINED ENV{PICO_SDK_PATH} AND NOT PICO_SDK_PATH)
   set(PICO_SDK_FETCH_FROM_GIT_TAG ${sdkVersion} CACHE STRING "Raspberry Pi Pico SDK git tag" FORCE)
 endif()
 
-set(COMPUTERCARD_PATHS
-  ${CMAKE_CURRENT_LIST_DIR}/../../Demonstrations+HelloWorlds/PicoSDK/ComputerCard
-  ${CMAKE_CURRENT_LIST_DIR}/../Workshop_Computer/Demonstrations+HelloWorlds/PicoSDK/ComputerCard
-  $ENV{WORKSHOP_COMPUTER_PATH}/Demonstrations+HelloWorlds/PicoSDK/ComputerCard)
-
-foreach(candidate ${COMPUTERCARD_PATHS})
-  if(EXISTS ${candidate}/pico_sdk_import.cmake)
-    set(COMPUTERCARD_IMPORT_DIR ${candidate})
-    break()
-  endif()
-endforeach()
-
-if(NOT COMPUTERCARD_IMPORT_DIR)
-  message(FATAL_ERROR "Could not find ComputerCard pico_sdk_import.cmake. Set WORKSHOP_COMPUTER_PATH to a Workshop_Computer checkout.")
-endif()
-
-include(${COMPUTERCARD_IMPORT_DIR}/pico_sdk_import.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/pico_sdk_import.cmake)
 
 set(CARD_NAME punk_confusion)
 project(${CARD_NAME} C CXX ASM)
@@ -69,8 +53,7 @@ add_executable(${CARD_NAME}
   main.cpp)
 
 target_include_directories(${CARD_NAME} PUBLIC
-  ${CMAKE_CURRENT_LIST_DIR}
-  ${COMPUTERCARD_IMPORT_DIR})
+  ${CMAKE_CURRENT_LIST_DIR})
 
 # The card-local ComputerCard.h is intentionally searched first. It keeps the
 # newer per-card hardware fixes without modifying the upstream HelloWorlds copy.
