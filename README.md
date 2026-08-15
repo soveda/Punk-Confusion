@@ -181,6 +181,10 @@ normalises it to about `-6 dBFS`. The Python backend receives those processed
 WAVs, regenerates `VocalSamples.h`, runs CMake, and returns the finished UF2.
 The first build may take longer if the Pico SDK has to be fetched.
 
+The local build process replaces the four files in `samples/` and regenerates
+`VocalSamples.h` before compiling. Commit or copy any sample set you want to
+keep before running the builder with different sounds.
+
 If you do not want to use the local web backend, the page can still download
 processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
 useful if you want to audition or archive the exact card-ready files before
