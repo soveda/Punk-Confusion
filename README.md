@@ -148,21 +148,47 @@ Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
 
-There is also an experimental local web builder. Start it from the repo root:
+### Local Web UF2 Builder
+
+The easiest way to make a custom sample build is the experimental local web
+builder. It gives you a browser interface for preparing the samples, but the
+actual firmware build still happens locally on your computer.
+
+Start the builder from the repo root:
 
 ```sh
 python3 tools/web_uf2_server.py
 ```
 
-Then open `http://127.0.0.1:8765/web/`, drop four audio files into the venue
-slots, preview the converted samples, and press `Build custom UF2`. The browser
-normalises the samples to about `-6 dBFS`; the local Python backend runs CMake
-and downloads `punk_confusion_custom.uf2` when the build finishes.
+Then open:
+
+```text
+http://127.0.0.1:8765/web/
+```
+
+Use the page like this:
+
+1. Drop one audio file into each venue slot.
+2. Wait for each slot to say `ready`.
+3. Use the preview player to check the converted shout.
+4. Check that total sample time and estimated header size look sensible.
+5. Press `Build custom UF2`.
+6. Wait for the local CMake build to finish.
+7. The browser downloads `punk_confusion_custom.uf2`.
+
+The browser converts each source file to mono 24 kHz signed 16-bit PCM and
+normalises it to about `-6 dBFS`. The Python backend receives those processed
+WAVs, regenerates `VocalSamples.h`, runs CMake, and returns the finished UF2.
+The first build may take longer if the Pico SDK has to be fetched.
 
 If you do not want to use the local web backend, the page can still download
-processed WAVs or a replacement `VocalSamples.h`.
+processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
+useful if you want to audition or archive the exact card-ready files before
+building.
 
-For a command-line local build, use:
+### Command-Line Build
+
+For a command-line local build using the WAVs already in `samples/`, use:
 
 ```sh
 python3 tools/build_custom_uf2.py --clean
