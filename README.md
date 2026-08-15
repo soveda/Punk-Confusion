@@ -157,13 +157,19 @@ actual firmware build still happens locally on your computer.
 Start the builder from the repo root:
 
 ```sh
-python3 tools/web_uf2_server.py
+make webui
 ```
 
 Then open:
 
 ```text
 http://127.0.0.1:8765/web/
+```
+
+If `make` is not available, run the server directly instead:
+
+```sh
+python3 tools/web_uf2_server.py
 ```
 
 Use the page like this:
@@ -185,6 +191,12 @@ The local build process replaces the four files in `samples/` and regenerates
 `VocalSamples.h` before compiling. Commit or copy any sample set you want to
 keep before running the builder with different sounds.
 
+You can use a different local port if needed:
+
+```sh
+make webui WEB_PORT=9000
+```
+
 If you do not want to use the local web backend, the page can still download
 processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
 useful if you want to audition or archive the exact card-ready files before
@@ -195,7 +207,7 @@ building.
 For a command-line local build using the WAVs already in `samples/`, use:
 
 ```sh
-python3 tools/build_custom_uf2.py --clean
+make custom-uf2
 ```
 
 That regenerates `VocalSamples.h`, configures/builds the Pico SDK project, and
