@@ -148,13 +148,21 @@ Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
 
-There is also an experimental browser tool in `web/index.html`. It lets you
-drop four audio files into the venue slots, previews the converted samples,
-normalises them to about `-6 dBFS`, and downloads a replacement
-`VocalSamples.h`. The web tool still follows the same firmware flow: replace
-`VocalSamples.h`, rebuild the UF2, then flash the card.
+There is also an experimental local web builder. Start it from the repo root:
 
-For a more automated local build, use:
+```sh
+python3 tools/web_uf2_server.py
+```
+
+Then open `http://127.0.0.1:8765/web/`, drop four audio files into the venue
+slots, preview the converted samples, and press `Build custom UF2`. The browser
+normalises the samples to about `-6 dBFS`; the local Python backend runs CMake
+and downloads `punk_confusion_custom.uf2` when the build finishes.
+
+If you do not want to use the local web backend, the page can still download
+processed WAVs or a replacement `VocalSamples.h`.
+
+For a command-line local build, use:
 
 ```sh
 python3 tools/build_custom_uf2.py --clean
@@ -169,8 +177,8 @@ python3 tools/build_custom_uf2.py --samples path/to/my-samples --clean
 ```
 
 The sample folder must contain the four filenames listed above. From this
-standalone repo, the script expects a sibling `Workshop_Computer` checkout or a
-`WORKSHOP_COMPUTER_PATH` environment variable pointing to one.
+standalone repo, CMake uses the local `ComputerCard.h` and will use a local Pico
+SDK if available, or fetch the SDK into the build directory.
 
 ## Jack Map
 

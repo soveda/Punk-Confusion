@@ -38,9 +38,11 @@ const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
 const downloadHeaderButton = document.querySelector("#downloadHeader");
 const downloadWavsButton = document.querySelector("#downloadWavs");
+const buildUf2Button = document.querySelector("#buildUf2");
 const clearAllButton = document.querySelector("#clearAll");
 const totalDurationEl = document.querySelector("#totalDuration");
 const headerSizeEl = document.querySelector("#headerSize");
+const builderMessageEl = document.querySelector("#builderMessage");
 
 let audioContext;
 
@@ -64,6 +66,15 @@ function downloadBlob(blob, filename) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
 }
 
 async function decodeAudioFile(file) {
@@ -181,6 +192,7 @@ function updateSummary() {
   const header = ready.length === sampleSlots.length ? generateHeader() : "";
   totalDurationEl.textContent = `${duration.toFixed(3)} s`;
   headerSizeEl.textContent = header ? formatBytes(new TextEncoder().encode(header).length) : "0 KB";
+  buildUf2Button.disabled = ready.length !== sampleSlots.length;
   downloadHeaderButton.disabled = ready.length !== sampleSlots.length;
   downloadWavsButton.disabled = ready.length !== sampleSlots.length;
 }
@@ -290,6 +302,43 @@ downloadWavsButton.addEventListener("click", () => {
       downloadBlob(item.wavBlob, sampleSlots[index].filename);
     }, index * 180);
   });
+});
+
+buildUf2Button.addEventListener("click", async () => {
+  const ready = state.filter(Boolean);
+  if (ready.length !== sampleSlots.length) return;
+
+  buildUf2Button.disabled = true;
+  builderMessageEl.textContent = "Building UF2 locally. This can take a minute or two...";
+
+  try {
+    const samples = await Promise.all(
+      sampleSlots.map(async (slot, index) => ({
+        filename: slot.filename,
+        data: arrayBufferToBase64(await state[index].wavBlob.arrayBuffer())
+      }))
+    );
+
+    const response = await fetch("/api/build", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ samples })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Build failed with HTTP ${response.status}`);
+    }
+
+    const uf2 = await response.blob();
+    downloadBlob(uf2, "punk_confusion_custom.uf2");
+    builderMessageEl.textContent = "Built punk_confusion_custom.uf2. Flash it to test your shouts.";
+  } catch (error) {
+    console.error(error);
+    builderMessageEl.textContent = error.message || "Build failed.";
+  } finally {
+    buildUf2Button.disabled = state.filter(Boolean).length !== sampleSlots.length;
+  }
 });
 
 clearAllButton.addEventListener("click", () => {

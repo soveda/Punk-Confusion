@@ -24,7 +24,7 @@
       </div>
       <div>
         <strong>Firmware flow</strong>
-        <span>Download samples/header, run the build script, flash the custom UF2.</span>
+        <span>Run the local builder, drop samples, download the finished UF2.</span>
       </div>
       <div>
         <strong>Keep it short</strong>
@@ -44,10 +44,19 @@
         <strong id="headerSize">0 KB</strong>
       </div>
       <div class="actions">
+        <button id="buildUf2" disabled>Build custom UF2</button>
         <button id="downloadHeader" disabled>Download VocalSamples.h</button>
         <button id="downloadWavs" disabled>Download processed WAVs</button>
         <button id="clearAll" type="button">Clear</button>
       </div>
+    </section>
+
+    <section class="builder-status" aria-live="polite">
+      <h2>Local UF2 builder</h2>
+      <p id="builderMessage">
+        Start the local server with <code>python3 tools/web_uf2_server.py</code>,
+        then this button will build and download a complete custom UF2.
+      </p>
     </section>
 
     <section class="notes">
@@ -56,8 +65,9 @@
         The output header uses the same symbol names as the firmware:
         <code>kVocalMarqueeOi</code>, <code>kVocalCbgbHeyHo</code>,
         <code>kVocalClub100NoFuture</code>, and <code>kVocalWhiskyLetsGo</code>.
-        The web tool does not compile firmware directly. For a full custom UF2,
-        download the processed WAVs, put them in a folder, then run
+        The browser converts the audio; the local Python backend runs CMake and
+        returns the finished UF2. If you are using this page without the backend,
+        you can still download the processed WAVs and run
         <code>python3 tools/build_custom_uf2.py --samples that-folder --clean</code>.
       </p>
     </section>

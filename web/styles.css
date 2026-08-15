@@ -95,6 +95,7 @@ h1 {
 
 .instructions div,
 .meter-card,
+.builder-status,
 .notes {
   padding: 18px;
   background: rgba(244, 234, 213, 0.88);
@@ -247,6 +248,12 @@ button:disabled {
   margin-top: 28px;
 }
 
+.builder-status {
+  margin-top: 18px;
+  border-width: 3px;
+}
+
+.builder-status h2,
 .notes h2 {
   margin: 0 0 8px;
   font-family: "Arial Black", Impact, sans-serif;
