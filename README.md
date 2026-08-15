@@ -154,7 +154,7 @@ The easiest way to make a custom sample build is the experimental local web
 builder. It gives you a browser interface for preparing the samples, but the
 actual firmware build still happens locally on your computer.
 
-Start the builder from the repo root:
+Open a Terminal window in the `Punk Confusion` folder and run:
 
 ```sh
 make webui
