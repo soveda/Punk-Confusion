@@ -148,6 +148,68 @@ Keep replacement samples mono, 16-bit PCM, 24 kHz, short, and conservatively
 levelled. The card targets a 2 MB program card, so all samples and firmware must
 fit in flash.
 
+### Local Web UF2 Builder
+
+The easiest way to make a custom sample build is the experimental local web
+builder. It gives you a browser interface for preparing the samples, but the
+actual firmware build still happens locally on your computer.
+
+Start the builder from the repo root:
+
+```sh
+python3 tools/web_uf2_server.py
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765/web/
+```
+
+Use the page like this:
+
+1. Drop one audio file into each venue slot.
+2. Wait for each slot to say `ready`.
+3. Use the preview player to check the converted shout.
+4. Check that total sample time and estimated header size look sensible.
+5. Press `Build custom UF2`.
+6. Wait for the local CMake build to finish.
+7. The browser downloads `punk_confusion_custom.uf2`.
+
+The browser converts each source file to mono 24 kHz signed 16-bit PCM and
+normalises it to about `-6 dBFS`. The Python backend receives those processed
+WAVs, regenerates `VocalSamples.h`, runs CMake, and returns the finished UF2.
+The first build may take longer if the Pico SDK has to be fetched.
+
+The local build process replaces the four files in `samples/` and regenerates
+`VocalSamples.h` before compiling. Commit or copy any sample set you want to
+keep before running the builder with different sounds.
+
+If you do not want to use the local web backend, the page can still download
+processed WAVs or a replacement `VocalSamples.h`. The processed WAV download is
+useful if you want to audition or archive the exact card-ready files before
+building.
+
+### Command-Line Build
+
+For a command-line local build using the WAVs already in `samples/`, use:
+
+```sh
+python3 tools/build_custom_uf2.py --clean
+```
+
+That regenerates `VocalSamples.h`, configures/builds the Pico SDK project, and
+writes `uf2/punk_confusion_custom.uf2`. To build from a separate folder of
+card-ready WAVs, use:
+
+```sh
+python3 tools/build_custom_uf2.py --samples path/to/my-samples --clean
+```
+
+The sample folder must contain the four filenames listed above. From this
+standalone repo, CMake uses the local `ComputerCard.h` and will use a local Pico
+SDK if available, or fetch the SDK into the build directory.
+
 ## Jack Map
 
 | Jack | Role |
