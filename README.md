@@ -154,7 +154,29 @@ The easiest way to make a custom sample build is the experimental local web
 builder. It gives you a browser interface for preparing the samples, but the
 actual firmware build still happens locally on your computer.
 
-Open a Terminal window in the `Punk Confusion` folder and run:
+First open a command line app and move into the folder where you saved or cloned
+`Punk Confusion`. The exact path will be different on your computer, so adjust
+the examples below to match your own folder names.
+
+On macOS, open `Terminal` and use something like:
+
+```sh
+cd "$HOME/coding/GitHub/Punk Confusion"
+```
+
+On Windows, open `PowerShell` and use something like:
+
+```powershell
+cd "$HOME\Documents\GitHub\Punk Confusion"
+```
+
+On Linux, open `Terminal` and use something like:
+
+```sh
+cd "$HOME/GitHub/Punk Confusion"
+```
+
+Once your command line is in the `Punk Confusion` folder, start the builder:
 
 ```sh
 make webui
