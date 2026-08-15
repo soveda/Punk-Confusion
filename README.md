@@ -191,6 +191,13 @@ The local build process replaces the four files in `samples/` and regenerates
 `VocalSamples.h` before compiling. Commit or copy any sample set you want to
 keep before running the builder with different sounds.
 
+The original included shouts are backed up in `factory-samples/`. After making
+a custom UF2, restore the factory samples and matching header with:
+
+```sh
+make restore-factory-samples
+```
+
 You can use a different local port if needed:
 
 ```sh
