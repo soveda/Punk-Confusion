@@ -154,6 +154,24 @@ normalises them to about `-6 dBFS`, and downloads a replacement
 `VocalSamples.h`. The web tool still follows the same firmware flow: replace
 `VocalSamples.h`, rebuild the UF2, then flash the card.
 
+For a more automated local build, use:
+
+```sh
+python3 tools/build_custom_uf2.py --clean
+```
+
+That regenerates `VocalSamples.h`, configures/builds the Pico SDK project, and
+writes `uf2/punk_confusion_custom.uf2`. To build from a separate folder of
+card-ready WAVs, use:
+
+```sh
+python3 tools/build_custom_uf2.py --samples path/to/my-samples --clean
+```
+
+The sample folder must contain the four filenames listed above. From this
+standalone repo, the script expects a sibling `Workshop_Computer` checkout or a
+`WORKSHOP_COMPUTER_PATH` environment variable pointing to one.
+
 ## Jack Map
 
 | Jack | Role |

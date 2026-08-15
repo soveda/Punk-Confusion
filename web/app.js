@@ -37,6 +37,7 @@ const state = sampleSlots.map(() => null);
 const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
 const downloadHeaderButton = document.querySelector("#downloadHeader");
+const downloadWavsButton = document.querySelector("#downloadWavs");
 const clearAllButton = document.querySelector("#clearAll");
 const totalDurationEl = document.querySelector("#totalDuration");
 const headerSizeEl = document.querySelector("#headerSize");
@@ -181,6 +182,7 @@ function updateSummary() {
   totalDurationEl.textContent = `${duration.toFixed(3)} s`;
   headerSizeEl.textContent = header ? formatBytes(new TextEncoder().encode(header).length) : "0 KB";
   downloadHeaderButton.disabled = ready.length !== sampleSlots.length;
+  downloadWavsButton.disabled = ready.length !== sampleSlots.length;
 }
 
 function renderSlot(index) {
@@ -279,6 +281,15 @@ sampleSlots.forEach((_, index) => {
 downloadHeaderButton.addEventListener("click", () => {
   const header = generateHeader();
   downloadBlob(new Blob([header], { type: "text/x-c++hdr" }), "VocalSamples.h");
+});
+
+downloadWavsButton.addEventListener("click", () => {
+  state.forEach((item, index) => {
+    if (!item) return;
+    setTimeout(() => {
+      downloadBlob(item.wavBlob, sampleSlots[index].filename);
+    }, index * 180);
+  });
 });
 
 clearAllButton.addEventListener("click", () => {

@@ -24,7 +24,7 @@
       </div>
       <div>
         <strong>Firmware flow</strong>
-        <span>Replace <code>VocalSamples.h</code>, rebuild the UF2, flash the card.</span>
+        <span>Download samples/header, run the build script, flash the custom UF2.</span>
       </div>
       <div>
         <strong>Keep it short</strong>
@@ -45,6 +45,7 @@
       </div>
       <div class="actions">
         <button id="downloadHeader" disabled>Download VocalSamples.h</button>
+        <button id="downloadWavs" disabled>Download processed WAVs</button>
         <button id="clearAll" type="button">Clear</button>
       </div>
     </section>
@@ -55,7 +56,9 @@
         The output header uses the same symbol names as the firmware:
         <code>kVocalMarqueeOi</code>, <code>kVocalCbgbHeyHo</code>,
         <code>kVocalClub100NoFuture</code>, and <code>kVocalWhiskyLetsGo</code>.
-        The web tool does not edit or flash the UF2 directly.
+        The web tool does not compile firmware directly. For a full custom UF2,
+        download the processed WAVs, put them in a folder, then run
+        <code>python3 tools/build_custom_uf2.py --samples that-folder --clean</code>.
       </p>
     </section>
   </main>
