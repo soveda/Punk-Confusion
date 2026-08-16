@@ -139,6 +139,21 @@ public:
         LoadUploadedSampleBank();
     }
 
+    void ShowLoaderEntryLeds()
+    {
+        for (uint32_t blink = 0; blink < 3; ++blink)
+        {
+            for (uint32_t i = 0; i < 6; ++i) LedOn(i, true);
+            sleep_ms(110);
+            for (uint32_t i = 0; i < 6; ++i) LedOff(i);
+            sleep_ms(110);
+        }
+
+        LedOn(0, true);
+        LedOn(2, true);
+        LedOn(4, true);
+    }
+
     void ProcessSample() override
     {
         const Switch sw = SwitchVal();
@@ -866,6 +881,7 @@ int main()
     PunkConfusion card;
     if (BootSwitchHeldDown())
     {
+        card.ShowLoaderEntryLeds();
         RunWebSerialLoader();
     }
 
