@@ -4,6 +4,7 @@ const BANK_VERSION = 1;
 const FORMAT_MULAW_8 = 1;
 const SAMPLE_COUNT = 4;
 const LOADER_MAGIC = 0x444c4350; // PCLD
+const RESTORE_MAGIC = 0x524c4350; // PCLR
 const HEADER_BYTES = 32 + SAMPLE_COUNT * 8;
 
 const targets = {
@@ -23,6 +24,7 @@ const slotsEl = document.querySelector("#slots");
 const template = document.querySelector("#slotTemplate");
 const connectButton = document.querySelector("#connect");
 const uploadButton = document.querySelector("#upload");
+const restoreButton = document.querySelector("#restore");
 const downloadButton = document.querySelector("#download");
 const buildSelect = document.querySelector("#buildSelect");
 const bankLimitEl = document.querySelector("#bankLimit");
@@ -157,6 +159,7 @@ function updateSummary() {
   durationEl.textContent = `${duration.toFixed(3)} s`;
   remainingEl.textContent = formatBytes(remaining);
   uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port || totalBytes > target.bankBytes;
+  restoreButton.disabled = !port;
   downloadButton.disabled = ready.length !== SAMPLE_COUNT || totalBytes > target.bankBytes;
 }
 
@@ -284,6 +287,19 @@ uploadButton.addEventListener("click", async () => {
     await writer.write(packet);
     writer.releaseLock();
     appendLog(`Uploaded ${formatBytes(packet.length)}. Wait for OK DONE, then restart the card.`);
+  } catch (error) {
+    appendLog(error.message || String(error));
+  }
+});
+
+restoreButton.addEventListener("click", async () => {
+  try {
+    const packet = new Uint8Array(4);
+    writeU32(new DataView(packet.buffer), 0, RESTORE_MAGIC);
+    const writer = port.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    appendLog("Restore factory command sent. Wait for OK FACTORY_DONE, then restart the card.");
   } catch (error) {
     appendLog(error.message || String(error));
   }

@@ -439,10 +439,10 @@ private:
             ? (index > 0 ? index - 1 : index)
             : ((index + 1 < voice_.length) ? index + 1 : index);
         const int32_t a = voice_.muLaw
-            ? (static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[index])) >> 4)
+            ? static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[index]))
             : voice_.data[index];
         const int32_t b = voice_.muLaw
-            ? (static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[nextIndex])) >> 4)
+            ? static_cast<int32_t>(PunkSampleBank::decodeMuLaw(voice_.muLawData[nextIndex]))
             : voice_.data[nextIndex];
         const int32_t frac = static_cast<int32_t>(voice_.phase & 0xFFu);
         const int32_t sample = ((a * (256 - frac)) + (b * frac)) >> 8;
@@ -693,10 +693,13 @@ uint32_t ReadU32Blocking()
         | (static_cast<uint32_t>(bytes[3]) << 24);
 }
 
-void WaitForLoaderMagic()
+constexpr uint32_t kLoaderCommandUpload = 0x444C4350u; // "PCLD" little-endian.
+constexpr uint32_t kLoaderCommandClear = 0x524C4350u;  // "PCLR" little-endian.
+
+uint32_t WaitForLoaderCommand()
 {
-    const uint8_t expected[4] = {'P', 'C', 'L', 'D'};
-    uint32_t matched = 0;
+    uint8_t window[4] = {};
+    uint32_t count = 0;
 
     while (true)
     {
@@ -707,17 +710,22 @@ void WaitForLoaderMagic()
             continue;
         }
 
-        if (static_cast<uint8_t>(c) == expected[matched])
+        window[count & 0x03u] = static_cast<uint8_t>(c);
+        count++;
+        if (count < 4)
         {
-            matched++;
-            if (matched == sizeof(expected))
-            {
-                return;
-            }
+            continue;
         }
-        else
+
+        const uint32_t start = count & 0x03u;
+        const uint32_t command = static_cast<uint32_t>(window[start])
+            | (static_cast<uint32_t>(window[(start + 1) & 0x03u]) << 8)
+            | (static_cast<uint32_t>(window[(start + 2) & 0x03u]) << 16)
+            | (static_cast<uint32_t>(window[(start + 3) & 0x03u]) << 24);
+
+        if (command == kLoaderCommandUpload || command == kLoaderCommandClear)
         {
-            matched = static_cast<uint8_t>(c) == expected[0] ? 1 : 0;
+            return command;
         }
     }
 }
@@ -827,6 +835,15 @@ bool ReceiveAndProgramBank(uint32_t length)
     return true;
 }
 
+void ClearUploadedBank()
+{
+    printf("OK RESTORE_FACTORY\n");
+    const uint32_t ints = save_and_disable_interrupts();
+    flash_range_erase(PunkSampleBank::kBankOffset, FLASH_SECTOR_SIZE);
+    restore_interrupts(ints);
+    printf("OK FACTORY_DONE\n");
+}
+
 void RunWebSerialLoader()
 {
     stdio_usb_init();
@@ -834,11 +851,18 @@ void RunWebSerialLoader()
     printf("PUNKCONF LOADER READY\n");
     printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
     printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
-    printf("Send magic PCLD then a little-endian length and bank image.\n");
+    printf("Send PCLD plus length/bank image, or PCLR to restore factory samples.\n");
 
     while (true)
     {
-        WaitForLoaderMagic();
+        const uint32_t command = WaitForLoaderCommand();
+        if (command == kLoaderCommandClear)
+        {
+            ClearUploadedBank();
+            printf("Restart the card to use factory samples, or send PCLD for an upload.\n");
+            continue;
+        }
+
         const uint32_t length = ReadU32Blocking();
         if (length == 0 || length > PunkSampleBank::kBankSize)
         {

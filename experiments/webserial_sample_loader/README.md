@@ -14,7 +14,8 @@ The intended flow is:
    WebSerial loader mode and stays there until you restart the card.
 5. Confirm loader mode: all LEDs flash three times, then LEDs 1, 3, and 5 stay
    lit.
-6. Connect with WebSerial and upload the sample bank.
+6. Connect with WebSerial and upload the sample bank, or use `Restore factory
+   samples` to clear a previously uploaded bank.
 7. Restart the card and use the new shouts.
 
 ## First-Pass Design
@@ -30,6 +31,8 @@ The intended flow is:
   loader mode, and the web UI can use that to match the selected limit.
 - The uploaded bank contains a small header plus four 24 kHz 8-bit µ-law
   samples.
+- The web UI peak-normalises uploaded samples to about `-6 dBFS`, matching the
+  embedded factory fallback samples.
 - Playback reads directly from flash, so normal RAM use remains small.
 - Uploads are streamed into flash page-by-page, so the RP2040 never has to hold
   the full sample bank in RAM.
@@ -39,6 +42,9 @@ The intended flow is:
   factory samples in `VocalSamples.h`.
 - The base UF2s include those factory samples, so the card should make sound
   before any WebSerial upload.
+- Reflashing a UF2 may not clear the reserved sample-bank area. Use the web
+  UI's `Restore factory samples` button in loader mode to erase the uploaded
+  bank header and force the embedded factory fallback again.
 
 ## Useful Existing Workshop Code
 
