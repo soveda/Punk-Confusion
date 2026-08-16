@@ -678,13 +678,12 @@ uint32_t ReadU32Blocking()
         | (static_cast<uint32_t>(bytes[3]) << 24);
 }
 
-bool WaitForLoaderMagic(uint32_t timeoutMs)
+void WaitForLoaderMagic()
 {
     const uint8_t expected[4] = {'P', 'C', 'L', 'D'};
     uint32_t matched = 0;
-    const absolute_time_t deadline = make_timeout_time_ms(timeoutMs);
 
-    while (!time_reached(deadline))
+    while (true)
     {
         const int c = getchar_timeout_us(1000);
         if (c < 0)
@@ -698,7 +697,7 @@ bool WaitForLoaderMagic(uint32_t timeoutMs)
             matched++;
             if (matched == sizeof(expected))
             {
-                return true;
+                return;
             }
         }
         else
@@ -706,8 +705,6 @@ bool WaitForLoaderMagic(uint32_t timeoutMs)
             matched = static_cast<uint8_t>(c) == expected[0] ? 1 : 0;
         }
     }
-
-    return false;
 }
 
 bool ValidateBankHeader(const PunkSampleBank::Header &header, uint32_t length)
@@ -815,23 +812,18 @@ bool ReceiveAndProgramBank(uint32_t length)
     return true;
 }
 
-bool RunWebSerialLoader(uint32_t timeoutMs)
+void RunWebSerialLoader()
 {
     stdio_usb_init();
     sleep_ms(1200);
-    printf("PUNKCONF LOADER WINDOW %lu MS\n", static_cast<unsigned long>(timeoutMs));
+    printf("PUNKCONF LOADER READY\n");
     printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
     printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
     printf("Send magic PCLD then a little-endian length and bank image.\n");
 
-    if (!WaitForLoaderMagic(timeoutMs))
-    {
-        printf("PUNKCONF RUN CARD\n");
-        return false;
-    }
-
     while (true)
     {
+        WaitForLoaderMagic();
         const uint32_t length = ReadU32Blocking();
         if (length == 0 || length > PunkSampleBank::kBankSize)
         {
@@ -842,11 +834,28 @@ bool RunWebSerialLoader(uint32_t timeoutMs)
         printf("OK SEND %lu\n", static_cast<unsigned long>(length));
         ReceiveAndProgramBank(length);
         printf("Send PCLD for another upload or restart the card.\n");
-        if (!WaitForLoaderMagic(600000))
-        {
-            return true;
-        }
     }
+}
+
+bool BootSwitchHeldDown()
+{
+    // The three-position switch is on mux position 3 of ADC2, sharing the same
+    // path ComputerCard later uses for KnobVal(3). Sample it once before audio
+    // starts so the WebSerial loader has a deliberate hardware gesture.
+    gpio_put(MX_A, true);
+    gpio_put(MX_B, true);
+    sleep_us(250);
+    adc_select_input(2);
+
+    uint32_t sum = 0;
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        sum += adc_read();
+        sleep_us(20);
+    }
+
+    const uint32_t average = sum >> 5;
+    return average < 1000;
 }
 } // namespace
 
@@ -854,12 +863,12 @@ int main()
 {
     set_sys_clock_khz(192000, true);
 
-    if (RunWebSerialLoader(15000))
+    PunkConfusion card;
+    if (BootSwitchHeldDown())
     {
-        return 0;
+        RunWebSerialLoader();
     }
 
-    PunkConfusion card;
     card.EnableNormalisationProbe();
     card.Run();
 }

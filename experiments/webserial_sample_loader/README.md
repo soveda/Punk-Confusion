@@ -10,17 +10,20 @@ The intended flow is:
    `punk_confusion_16mb.uf2` for 16 MB cards.
 2. Open `web/index.html` in a Chromium-based browser.
 3. Drop four short samples into the page.
-4. Reset the card, connect with WebSerial, and upload during the 15 second
-   loader window.
-5. Restart the card and use the new shouts.
+4. Hold the card switch down while resetting/powering the card. This enters
+   WebSerial loader mode and stays there until you restart the card.
+5. Connect with WebSerial and upload the sample bank.
+6. Restart the card and use the new shouts.
 
 ## First-Pass Design
 
 - The same code builds both UF2 versions.
 - The 2 MB build stores the sample bank in the top `1 MB` of program flash.
 - The 16 MB build stores the sample bank in the top `14 MB` of program flash.
-- The firmware prints its flash size and sample-bank size over WebSerial during
-  the loader window, and the web UI can use that to match the selected limit.
+- Hold switch down during reset/power to enter loader mode. If the switch is
+  not held down, the card starts normally.
+- The firmware prints its flash size and sample-bank size over WebSerial in
+  loader mode, and the web UI can use that to match the selected limit.
 - The uploaded bank contains a small header plus four 24 kHz 8-bit µ-law
   samples.
 - Playback reads directly from flash, so normal RAM use remains small.

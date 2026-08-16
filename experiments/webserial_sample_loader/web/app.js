@@ -235,7 +235,7 @@ connectButton.addEventListener("click", async () => {
 
   port = await navigator.serial.requestPort();
   await port.open({ baudRate: 115200 });
-  log("Connected. Upload while the card is still in its loader window.");
+  log("Connected. The card should be in loader mode after booting with the switch held down.");
   readSerial(port);
   updateSummary();
 });
