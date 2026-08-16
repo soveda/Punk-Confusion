@@ -15,6 +15,9 @@ The intended flow is:
 ## First-Pass Design
 
 - The sample bank is stored in the top `1 MB` of program flash.
+- This is intentionally conservative for the current experiment: 2 MB cards
+  have limited room after firmware, while 16 MB cards are also available and
+  could support a much larger sample bank in a later version.
 - The uploaded bank contains a small header plus four 24 kHz 8-bit µ-law
   samples.
 - Playback reads directly from flash, so normal RAM use remains small.
