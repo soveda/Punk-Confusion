@@ -37,6 +37,8 @@ The intended flow is:
   can jump to any byte offset and decode samples independently.
 - If no valid uploaded bank is found, the firmware falls back to the current
   factory samples in `VocalSamples.h`.
+- The base UF2s include those factory samples, so the card should make sound
+  before any WebSerial upload.
 
 ## Useful Existing Workshop Code
 
