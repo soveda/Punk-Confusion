@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Punk Confusion WebSerial Loader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Experimental</p>
+      <h1>Load shouts without rebuilding.</h1>
+      <p>
+        Reset the experimental firmware, connect over WebSerial during the
+        loader window, then upload a new sample bank.
+      </p>
+    </section>
+
+    <section class="steps">
+      <div><strong>1</strong><span>Drop four short samples.</span></div>
+      <div><strong>2</strong><span>Reset the card and connect with WebSerial.</span></div>
+      <div><strong>3</strong><span>Upload within 15 seconds, then restart.</span></div>
+    </section>
+
+    <section class="slots" id="slots"></section>
+
+    <section class="panel">
+      <div>
+        <span>Total bank payload</span>
+        <strong id="payloadSize">0 KB</strong>
+      </div>
+      <div>
+        <span>Estimated duration</span>
+        <strong id="duration">0.000 s</strong>
+      </div>
+      <div class="actions">
+        <button id="connect">Connect card</button>
+        <button id="upload" disabled>Upload sample bank</button>
+        <button id="download" disabled>Download bank file</button>
+      </div>
+    </section>
+
+    <section class="log" aria-live="polite">
+      <h2>Status</h2>
+      <pre id="log">Waiting for samples.</pre>
+    </section>
+  </main>
+
+  <template id="slotTemplate">
+    <article class="slot">
+      <h2></h2>
+      <p class="venue"></p>
+      <label class="drop">
+        <input type="file" accept="audio/*,.wav,.aif,.aiff">
+        <span>Choose or drop audio</span>
+      </label>
+      <p class="info">Empty</p>
+      <audio controls></audio>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

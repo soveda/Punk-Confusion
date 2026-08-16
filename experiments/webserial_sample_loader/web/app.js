@@ -1,0 +1,259 @@
+const TARGET_SAMPLE_RATE = 24000;
+const BANK_MAGIC = 0x4b4e5550; // PUNK
+const BANK_VERSION = 1;
+const FORMAT_MULAW_8 = 1;
+const SAMPLE_COUNT = 4;
+const LOADER_MAGIC = 0x444c4350; // PCLD
+const MAX_BANK_BYTES = 1024 * 1024;
+
+const slots = [
+  { venue: "Marquee", phrase: "Oi" },
+  { venue: "CBGB", phrase: "Hey Ho" },
+  { venue: "100 Club", phrase: "No Future" },
+  { venue: "Whisky a Go Go", phrase: "Let's Go" }
+];
+
+const state = slots.map(() => null);
+const slotsEl = document.querySelector("#slots");
+const template = document.querySelector("#slotTemplate");
+const connectButton = document.querySelector("#connect");
+const uploadButton = document.querySelector("#upload");
+const downloadButton = document.querySelector("#download");
+const payloadSizeEl = document.querySelector("#payloadSize");
+const durationEl = document.querySelector("#duration");
+const logEl = document.querySelector("#log");
+
+let audioContext;
+let port;
+let serialText = "";
+
+function log(message) {
+  serialText = message;
+  logEl.textContent = serialText;
+}
+
+function appendLog(message) {
+  serialText = `${serialText}${serialText ? "\n" : ""}${message}`.slice(-3000);
+  logEl.textContent = serialText;
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getAudioContext() {
+  audioContext ||= new AudioContext();
+  return audioContext;
+}
+
+async function decodeAudio(file) {
+  return getAudioContext().decodeAudioData(await file.arrayBuffer());
+}
+
+async function resampleMono(buffer) {
+  const frameCount = Math.max(1, Math.ceil(buffer.duration * TARGET_SAMPLE_RATE));
+  const offline = new OfflineAudioContext(1, frameCount, TARGET_SAMPLE_RATE);
+  const source = offline.createBufferSource();
+  const gain = offline.createGain();
+  source.buffer = buffer;
+  gain.gain.value = 1 / Math.max(1, buffer.numberOfChannels);
+  source.connect(gain);
+  gain.connect(offline.destination);
+  source.start();
+  return (await offline.startRendering()).getChannelData(0);
+}
+
+function linearToMuLaw(sample) {
+  const clipped = Math.max(-1, Math.min(1, sample));
+  const sign = clipped < 0 ? 0x80 : 0;
+  let magnitude = Math.round(Math.abs(clipped) * 32767);
+  magnitude = Math.min(32635, magnitude + 0x84);
+
+  let exponent = 7;
+  for (let mask = 0x4000; exponent > 0 && (magnitude & mask) === 0; exponent--, mask >>= 1) {}
+
+  const mantissa = (magnitude >> (exponent + 3)) & 0x0f;
+  return ~(sign | (exponent << 4) | mantissa) & 0xff;
+}
+
+function normalise(samples) {
+  let peak = 0;
+  for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+  const gain = peak > 0 ? (10 ** (-6 / 20)) / peak : 1;
+  const encoded = new Uint8Array(samples.length);
+  for (let i = 0; i < samples.length; i++) encoded[i] = linearToMuLaw(samples[i] * gain);
+  return { encoded, gain, peak };
+}
+
+function writeU32(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+}
+
+function checksum(bytes) {
+  let sum = 2166136261;
+  for (const byte of bytes) {
+    sum ^= byte;
+    sum = Math.imul(sum, 16777619) >>> 0;
+  }
+  return sum >>> 0;
+}
+
+function buildBank() {
+  if (state.some((item) => !item)) return null;
+
+  const payloadBytes = state.reduce((sum, item) => sum + item.encoded.length, 0);
+  const headerBytes = 32 + SAMPLE_COUNT * 8;
+  const totalBytes = headerBytes + payloadBytes;
+  if (totalBytes > MAX_BANK_BYTES) throw new Error("Sample bank is larger than the reserved 1 MB flash area.");
+
+  const bank = new Uint8Array(totalBytes);
+  const view = new DataView(bank.buffer);
+  writeU32(view, 0, BANK_MAGIC);
+  writeU32(view, 4, BANK_VERSION);
+  writeU32(view, 8, FORMAT_MULAW_8);
+  writeU32(view, 12, TARGET_SAMPLE_RATE);
+  writeU32(view, 16, SAMPLE_COUNT);
+  writeU32(view, 20, payloadBytes);
+  writeU32(view, 24, checksum(new Uint8Array(bank.buffer, headerBytes, payloadBytes)));
+  writeU32(view, 28, 0);
+
+  let payloadOffset = 0;
+  for (let i = 0; i < SAMPLE_COUNT; i++) {
+    writeU32(view, 32 + i * 8, payloadOffset);
+    writeU32(view, 36 + i * 8, state[i].encoded.length);
+    bank.set(state[i].encoded, headerBytes + payloadOffset);
+    payloadOffset += state[i].encoded.length;
+  }
+
+  writeU32(view, 24, checksum(bank.slice(headerBytes)));
+  return bank;
+}
+
+function updateSummary() {
+  const ready = state.filter(Boolean);
+  const payloadBytes = ready.reduce((sum, item) => sum + item.encoded.length, 0);
+  const duration = ready.reduce((sum, item) => sum + item.encoded.length / TARGET_SAMPLE_RATE, 0);
+  payloadSizeEl.textContent = formatBytes(payloadBytes);
+  durationEl.textContent = `${duration.toFixed(3)} s`;
+  uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port;
+  downloadButton.disabled = ready.length !== SAMPLE_COUNT;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function handleFile(index, file, node) {
+  const info = node.querySelector(".info");
+  const audio = node.querySelector("audio");
+  info.textContent = "Decoding...";
+
+  const decoded = await decodeAudio(file);
+  const mono = await resampleMono(decoded);
+  const { encoded, gain, peak } = normalise(mono);
+  state[index] = { encoded, sourceName: file.name };
+
+  const preview = new Blob([await file.arrayBuffer()], { type: file.type || "audio/*" });
+  audio.src = URL.createObjectURL(preview);
+  info.innerHTML = `${file.name}<br>${(encoded.length / TARGET_SAMPLE_RATE).toFixed(3)} s, ${formatBytes(encoded.length)} µ-law<br>source peak ${(peak * 100).toFixed(1)}%, gain ${gain.toFixed(2)}x`;
+  updateSummary();
+}
+
+function renderSlot(index) {
+  const node = template.content.firstElementChild.cloneNode(true);
+  const input = node.querySelector("input");
+  const drop = node.querySelector(".drop");
+  node.querySelector("h2").textContent = slots[index].phrase;
+  node.querySelector(".venue").textContent = slots[index].venue;
+
+  input.addEventListener("change", () => {
+    if (input.files?.[0]) handleFile(index, input.files[0], node);
+  });
+
+  ["dragenter", "dragover"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.add("dragover");
+    });
+  });
+
+  ["dragleave", "drop"].forEach((name) => {
+    drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.remove("dragover");
+    });
+  });
+
+  drop.addEventListener("drop", (event) => {
+    const file = event.dataTransfer?.files?.[0];
+    if (file) handleFile(index, file, node);
+  });
+
+  return node;
+}
+
+connectButton.addEventListener("click", async () => {
+  if (!("serial" in navigator)) {
+    log("WebSerial is not available. Use Chrome or Edge on localhost/HTTPS.");
+    return;
+  }
+
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 115200 });
+  log("Connected. Upload while the card is still in its loader window.");
+  readSerial(port);
+  updateSummary();
+});
+
+async function readSerial(serialPort) {
+  const decoder = new TextDecoder();
+  while (serialPort.readable) {
+    const reader = serialPort.readable.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) appendLog(decoder.decode(value, { stream: true }).trimEnd());
+      }
+    } catch (error) {
+      appendLog(error.message || String(error));
+    } finally {
+      reader.releaseLock();
+    }
+  }
+}
+
+uploadButton.addEventListener("click", async () => {
+  try {
+    const bank = buildBank();
+    const packet = new Uint8Array(8 + bank.length);
+    const view = new DataView(packet.buffer);
+    writeU32(view, 0, LOADER_MAGIC);
+    writeU32(view, 4, bank.length);
+    packet.set(bank, 8);
+
+    const writer = port.writable.getWriter();
+    await writer.write(packet);
+    writer.releaseLock();
+    appendLog(`Uploaded ${formatBytes(packet.length)}. Wait for OK DONE, then restart the card.`);
+  } catch (error) {
+    appendLog(error.message || String(error));
+  }
+});
+
+downloadButton.addEventListener("click", () => {
+  const bank = buildBank();
+  downloadBlob(new Blob([bank], { type: "application/octet-stream" }), "punk_confusion_samples.pbank");
+});
+
+slots.forEach((_, index) => slotsEl.append(renderSlot(index)));
+updateSummary();
