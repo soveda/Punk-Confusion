@@ -1,5 +1,12 @@
+.DS_Store
+**/.DS_Store
+
 build*/
+**/build*/
 build-web/
+
 tools/__pycache__/
+**/__pycache__/
 *.pyc
+
 uf2/punk_confusion_custom.uf2
