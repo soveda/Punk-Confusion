@@ -4,7 +4,12 @@ const BANK_VERSION = 1;
 const FORMAT_MULAW_8 = 1;
 const SAMPLE_COUNT = 4;
 const LOADER_MAGIC = 0x444c4350; // PCLD
-const MAX_BANK_BYTES = 1024 * 1024;
+const HEADER_BYTES = 32 + SAMPLE_COUNT * 8;
+
+const targets = {
+  "2mb": { label: "2 MB card", flashBytes: 2 * 1024 * 1024, bankBytes: 1024 * 1024 },
+  "16mb": { label: "16 MB card", flashBytes: 16 * 1024 * 1024, bankBytes: 14 * 1024 * 1024 }
+};
 
 const slots = [
   { venue: "Marquee", phrase: "Oi" },
@@ -19,8 +24,11 @@ const template = document.querySelector("#slotTemplate");
 const connectButton = document.querySelector("#connect");
 const uploadButton = document.querySelector("#upload");
 const downloadButton = document.querySelector("#download");
+const buildSelect = document.querySelector("#buildSelect");
+const bankLimitEl = document.querySelector("#bankLimit");
 const payloadSizeEl = document.querySelector("#payloadSize");
 const durationEl = document.querySelector("#duration");
+const remainingEl = document.querySelector("#remaining");
 const logEl = document.querySelector("#log");
 
 let audioContext;
@@ -100,13 +108,19 @@ function checksum(bytes) {
   return sum >>> 0;
 }
 
+function selectedTarget() {
+  return targets[buildSelect.value] || targets["2mb"];
+}
+
 function buildBank() {
   if (state.some((item) => !item)) return null;
 
   const payloadBytes = state.reduce((sum, item) => sum + item.encoded.length, 0);
-  const headerBytes = 32 + SAMPLE_COUNT * 8;
-  const totalBytes = headerBytes + payloadBytes;
-  if (totalBytes > MAX_BANK_BYTES) throw new Error("Sample bank is larger than the reserved 1 MB flash area.");
+  const totalBytes = HEADER_BYTES + payloadBytes;
+  const target = selectedTarget();
+  if (totalBytes > target.bankBytes) {
+    throw new Error(`Sample bank is larger than the reserved ${formatBytes(target.bankBytes)} flash area for the ${target.label} build.`);
+  }
 
   const bank = new Uint8Array(totalBytes);
   const view = new DataView(bank.buffer);
@@ -116,29 +130,34 @@ function buildBank() {
   writeU32(view, 12, TARGET_SAMPLE_RATE);
   writeU32(view, 16, SAMPLE_COUNT);
   writeU32(view, 20, payloadBytes);
-  writeU32(view, 24, checksum(new Uint8Array(bank.buffer, headerBytes, payloadBytes)));
+  writeU32(view, 24, checksum(new Uint8Array(bank.buffer, HEADER_BYTES, payloadBytes)));
   writeU32(view, 28, 0);
 
   let payloadOffset = 0;
   for (let i = 0; i < SAMPLE_COUNT; i++) {
     writeU32(view, 32 + i * 8, payloadOffset);
     writeU32(view, 36 + i * 8, state[i].encoded.length);
-    bank.set(state[i].encoded, headerBytes + payloadOffset);
+    bank.set(state[i].encoded, HEADER_BYTES + payloadOffset);
     payloadOffset += state[i].encoded.length;
   }
 
-  writeU32(view, 24, checksum(bank.slice(headerBytes)));
+  writeU32(view, 24, checksum(bank.slice(HEADER_BYTES)));
   return bank;
 }
 
 function updateSummary() {
   const ready = state.filter(Boolean);
   const payloadBytes = ready.reduce((sum, item) => sum + item.encoded.length, 0);
+  const totalBytes = HEADER_BYTES + payloadBytes;
   const duration = ready.reduce((sum, item) => sum + item.encoded.length / TARGET_SAMPLE_RATE, 0);
+  const target = selectedTarget();
+  const remaining = Math.max(0, target.bankBytes - totalBytes);
+  bankLimitEl.textContent = formatBytes(target.bankBytes);
   payloadSizeEl.textContent = formatBytes(payloadBytes);
   durationEl.textContent = `${duration.toFixed(3)} s`;
-  uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port;
-  downloadButton.disabled = ready.length !== SAMPLE_COUNT;
+  remainingEl.textContent = formatBytes(remaining);
+  uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port || totalBytes > target.bankBytes;
+  downloadButton.disabled = ready.length !== SAMPLE_COUNT || totalBytes > target.bankBytes;
 }
 
 function downloadBlob(blob, filename) {
@@ -201,6 +220,13 @@ function renderSlot(index) {
   return node;
 }
 
+function matchTargetFromBankSize(bankBytes) {
+  for (const [key, target] of Object.entries(targets)) {
+    if (target.bankBytes === bankBytes) return key;
+  }
+  return null;
+}
+
 connectButton.addEventListener("click", async () => {
   if (!("serial" in navigator)) {
     log("WebSerial is not available. Use Chrome or Edge on localhost/HTTPS.");
@@ -214,6 +240,8 @@ connectButton.addEventListener("click", async () => {
   updateSummary();
 });
 
+buildSelect.addEventListener("change", updateSummary);
+
 async function readSerial(serialPort) {
   const decoder = new TextDecoder();
   while (serialPort.readable) {
@@ -222,7 +250,18 @@ async function readSerial(serialPort) {
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        if (value) appendLog(decoder.decode(value, { stream: true }).trimEnd());
+        if (value) {
+          const text = decoder.decode(value, { stream: true }).trimEnd();
+          appendLog(text);
+          const match = text.match(/SAMPLE_BANK_BYTES\s+(\d+)/);
+          if (match) {
+            const targetKey = matchTargetFromBankSize(Number(match[1]));
+            if (targetKey) {
+              buildSelect.value = targetKey;
+              updateSummary();
+            }
+          }
+        }
       }
     } catch (error) {
       appendLog(error.message || String(error));

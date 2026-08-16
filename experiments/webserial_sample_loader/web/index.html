@@ -23,9 +23,25 @@
       <div><strong>3</strong><span>Upload within 15 seconds, then restart.</span></div>
     </section>
 
+    <section class="target">
+      <label for="buildSelect">Target firmware/card</label>
+      <select id="buildSelect">
+        <option value="2mb">2 MB card, 1 MB sample bank</option>
+        <option value="16mb">16 MB card, 14 MB sample bank</option>
+      </select>
+      <p>
+        Choose the build you flashed. The card also prints its flash and sample
+        bank size in the serial log during the loader window.
+      </p>
+    </section>
+
     <section class="slots" id="slots"></section>
 
     <section class="panel">
+      <div>
+        <span>Selected bank limit</span>
+        <strong id="bankLimit">1.00 MB</strong>
+      </div>
       <div>
         <span>Total bank payload</span>
         <strong id="payloadSize">0 KB</strong>
@@ -33,6 +49,10 @@
       <div>
         <span>Estimated duration</span>
         <strong id="duration">0.000 s</strong>
+      </div>
+      <div>
+        <span>Remaining space</span>
+        <strong id="remaining">1.00 MB</strong>
       </div>
       <div class="actions">
         <button id="connect">Connect card</button>

@@ -8,14 +8,20 @@
 
 namespace PunkSampleBank
 {
+#ifndef PUNK_SAMPLE_BANK_SIZE_BYTES
+#define PUNK_SAMPLE_BANK_SIZE_BYTES (1024 * 1024)
+#endif
+
 constexpr uint32_t kMagic = 0x4B4E5550u; // "PUNK" little-endian.
 constexpr uint32_t kVersion = 1;
 constexpr uint32_t kFormatMuLaw8 = 1;
 constexpr uint32_t kSampleRate = 24000;
 constexpr uint32_t kSampleCount = 4;
-constexpr uint32_t kBankSize = 1024 * 1024; // Reserved at top of flash.
+constexpr uint32_t kBankSize = PUNK_SAMPLE_BANK_SIZE_BYTES; // Reserved at top of flash.
 constexpr uint32_t kBankOffset = PICO_FLASH_SIZE_BYTES - kBankSize;
 constexpr uint32_t kMaxPayloadBytes = kBankSize - 4096;
+
+static_assert(kBankSize < PICO_FLASH_SIZE_BYTES, "Sample bank must leave room for firmware.");
 
 struct SampleInfo
 {

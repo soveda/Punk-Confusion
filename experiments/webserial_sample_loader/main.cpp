@@ -820,6 +820,8 @@ bool RunWebSerialLoader(uint32_t timeoutMs)
     stdio_usb_init();
     sleep_ms(1200);
     printf("PUNKCONF LOADER WINDOW %lu MS\n", static_cast<unsigned long>(timeoutMs));
+    printf("FLASH_BYTES %lu\n", static_cast<unsigned long>(PICO_FLASH_SIZE_BYTES));
+    printf("SAMPLE_BANK_BYTES %lu\n", static_cast<unsigned long>(PunkSampleBank::kBankSize));
     printf("Send magic PCLD then a little-endian length and bank image.\n");
 
     if (!WaitForLoaderMagic(timeoutMs))

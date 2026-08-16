@@ -22,7 +22,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -35,6 +36,7 @@ input {
 .hero,
 .panel,
 .log,
+.target,
 .steps div,
 .slot {
   border: 3px solid var(--ink);
@@ -81,9 +83,37 @@ h1 {
 .steps,
 .panel {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin: 32px 0;
+}
+
+.target {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr);
+  gap: 12px 18px;
+  align-items: center;
+  margin: 32px 0 0;
+  padding: 18px;
+}
+
+.target label {
+  font-family: "Arial Black", Impact, sans-serif;
+  text-transform: uppercase;
+}
+
+.target select {
+  width: 100%;
+  border: 3px solid var(--ink);
+  padding: 12px;
+  color: var(--ink);
+  background: var(--yellow);
+}
+
+.target p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
 }
 
 .steps div,
@@ -184,7 +214,8 @@ pre {
 @media (max-width: 900px) {
   .steps,
   .panel,
-  .slots {
+  .slots,
+  .target {
     grid-template-columns: 1fr;
   }
 }
