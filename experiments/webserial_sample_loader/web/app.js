@@ -8,8 +8,8 @@ const RESTORE_MAGIC = 0x524c4350; // PCLR
 const HEADER_BYTES = 32 + SAMPLE_COUNT * 8;
 
 const targets = {
-  "2mb": { label: "2 MB card", flashBytes: 2 * 1024 * 1024, bankBytes: 1024 * 1024 },
-  "16mb": { label: "16 MB card", flashBytes: 16 * 1024 * 1024, bankBytes: 14 * 1024 * 1024 }
+  "2mb": { label: "standard 2 MB card", flashBytes: 2 * 1024 * 1024, bankBytes: 1024 * 1024 },
+  "16mb": { label: "large 16 MB card", flashBytes: 16 * 1024 * 1024, bankBytes: 14 * 1024 * 1024 }
 };
 
 const slots = [
@@ -121,7 +121,7 @@ function buildBank() {
   const totalBytes = HEADER_BYTES + payloadBytes;
   const target = selectedTarget();
   if (totalBytes > target.bankBytes) {
-    throw new Error(`Sample bank is larger than the reserved ${formatBytes(target.bankBytes)} flash area for the ${target.label} build.`);
+    throw new Error(`These sounds need more room than the ${target.label} can use here. Shorten the audio or choose the 16 MB build.`);
   }
 
   const bank = new Uint8Array(totalBytes);
@@ -232,13 +232,13 @@ function matchTargetFromBankSize(bankBytes) {
 
 connectButton.addEventListener("click", async () => {
   if (!("serial" in navigator)) {
-    log("WebSerial is not available. Use Chrome or Edge on localhost/HTTPS.");
+    log("This browser cannot talk to the card. Use Chrome or Edge.");
     return;
   }
 
   port = await navigator.serial.requestPort();
   await port.open({ baudRate: 115200 });
-  log("Connected. The card should be in loader mode after booting with the switch held down.");
+  log("Connected. If LEDs 1, 3, and 5 are lit, you can send sounds now.");
   readSerial(port);
   updateSummary();
 });
@@ -286,7 +286,7 @@ uploadButton.addEventListener("click", async () => {
     const writer = port.writable.getWriter();
     await writer.write(packet);
     writer.releaseLock();
-    appendLog(`Uploaded ${formatBytes(packet.length)}. Wait for OK DONE, then restart the card.`);
+    appendLog(`Sent ${formatBytes(packet.length)} to the card. Wait for OK DONE, then restart the card.`);
   } catch (error) {
     appendLog(error.message || String(error));
   }
@@ -299,7 +299,7 @@ restoreButton.addEventListener("click", async () => {
     const writer = port.writable.getWriter();
     await writer.write(packet);
     writer.releaseLock();
-    appendLog("Restore factory command sent. Wait for OK FACTORY_DONE, then restart the card.");
+    appendLog("Built-in sounds command sent. Wait for OK FACTORY_DONE, then restart the card.");
   } catch (error) {
     appendLog(error.message || String(error));
   }
