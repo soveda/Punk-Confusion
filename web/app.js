@@ -36,6 +36,8 @@ const logEl = document.querySelector("#log");
 let audioContext;
 let port;
 let serialText = "";
+let uploadInProgress = false;
+const serialWaiters = [];
 
 function log(message) {
   serialText = message;
@@ -45,6 +47,7 @@ function log(message) {
 function appendLog(message) {
   serialText = `${serialText}${serialText ? "\n" : ""}${message}`.slice(-3000);
   logEl.textContent = serialText;
+  notifySerialWaiters(serialText);
 }
 
 function formatBytes(bytes) {
@@ -161,6 +164,47 @@ function updateSummary() {
   uploadButton.disabled = ready.length !== SAMPLE_COUNT || !port || totalBytes > target.bankBytes;
   restoreButton.disabled = !port;
   downloadButton.disabled = ready.length !== SAMPLE_COUNT || totalBytes > target.bankBytes;
+  if (uploadInProgress) {
+    uploadButton.disabled = true;
+    restoreButton.disabled = true;
+  }
+}
+
+function notifySerialWaiters(text) {
+  for (let i = serialWaiters.length - 1; i >= 0; i--) {
+    const waiter = serialWaiters[i];
+    const match = text.slice(waiter.from).match(waiter.pattern);
+    if (match) {
+      clearTimeout(waiter.timer);
+      serialWaiters.splice(i, 1);
+      waiter.resolve({ text, match });
+    }
+  }
+}
+
+function waitForSerial(pattern, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const waiter = {
+      pattern,
+      from: serialText.length,
+      resolve,
+      timer: setTimeout(() => {
+        const index = serialWaiters.indexOf(waiter);
+        if (index >= 0) serialWaiters.splice(index, 1);
+        reject(new Error("The card did not answer in time. Check that LEDs 1, 3, and 5 are lit, then try again."));
+      }, timeoutMs)
+    };
+    serialWaiters.push(waiter);
+  });
+}
+
+async function writeToCard(bytes) {
+  const writer = port.writable.getWriter();
+  try {
+    await writer.write(bytes);
+  } finally {
+    writer.releaseLock();
+  }
 }
 
 function downloadBlob(blob, filename) {
@@ -275,30 +319,43 @@ async function readSerial(serialPort) {
 }
 
 uploadButton.addEventListener("click", async () => {
+  if (uploadInProgress) return;
+  uploadInProgress = true;
+  updateSummary();
   try {
     const bank = buildBank();
-    const packet = new Uint8Array(8 + bank.length);
-    const view = new DataView(packet.buffer);
+    const command = new Uint8Array(8);
+    const view = new DataView(command.buffer);
     writeU32(view, 0, LOADER_MAGIC);
     writeU32(view, 4, bank.length);
-    packet.set(bank, 8);
 
-    const writer = port.writable.getWriter();
-    await writer.write(packet);
-    writer.releaseLock();
-    appendLog(`Sent ${formatBytes(packet.length)} to the card. Wait for OK DONE, then restart the card.`);
+    appendLog(`Starting upload of ${formatBytes(bank.length)}. Keep the card connected.`);
+    const ready = waitForSerial(/OK SEND\s+\d+|ERR\s+\w+/, 10000);
+    await writeToCard(command);
+    const readyReply = await ready;
+    if (/ERR/.test(readyReply.match[0])) throw new Error(readyReply.match[0]);
+
+    appendLog("Card is ready. Sending sounds now...");
+    const done = waitForSerial(/OK DONE|ERR\s+\w+/, 30000);
+    await writeToCard(bank);
+    const doneReply = await done;
+    if (/ERR/.test(doneReply.match[0])) throw new Error(doneReply.match[0]);
+
+    appendLog("Upload complete. Restart the card now to use the new shouts.");
   } catch (error) {
     appendLog(error.message || String(error));
+  } finally {
+    uploadInProgress = false;
+    updateSummary();
   }
 });
 
 restoreButton.addEventListener("click", async () => {
+  if (uploadInProgress) return;
   try {
     const packet = new Uint8Array(4);
     writeU32(new DataView(packet.buffer), 0, RESTORE_MAGIC);
-    const writer = port.writable.getWriter();
-    await writer.write(packet);
-    writer.releaseLock();
+    await writeToCard(packet);
     appendLog("Built-in sounds command sent. Wait for OK FACTORY_DONE, then restart the card.");
   } catch (error) {
     appendLog(error.message || String(error));
