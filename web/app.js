@@ -32,11 +32,14 @@ const payloadSizeEl = document.querySelector("#payloadSize");
 const durationEl = document.querySelector("#duration");
 const remainingEl = document.querySelector("#remaining");
 const logEl = document.querySelector("#log");
+const firmwareNoticeEl = document.querySelector("#firmwareNotice");
 
 let audioContext;
 let port;
 let serialText = "";
 let uploadInProgress = false;
+let loaderGreetingSeen = false;
+let firmwareCheckTimer;
 const serialWaiters = [];
 
 function log(message) {
@@ -48,6 +51,11 @@ function appendLog(message) {
   serialText = `${serialText}${serialText ? "\n" : ""}${message}`.slice(-3000);
   logEl.textContent = serialText;
   notifySerialWaiters(serialText);
+}
+
+function setFirmwareNotice(message, kind = "") {
+  firmwareNoticeEl.textContent = message;
+  firmwareNoticeEl.className = `notice ${kind}`.trim();
 }
 
 function formatBytes(bytes) {
@@ -191,7 +199,7 @@ function waitForSerial(pattern, timeoutMs = 15000) {
       timer: setTimeout(() => {
         const index = serialWaiters.indexOf(waiter);
         if (index >= 0) serialWaiters.splice(index, 1);
-        reject(new Error("The card did not answer in time. Check that LEDs 1, 3, and 5 are lit, then try again."));
+        reject(new Error("The card did not answer in time. Check that LEDs 1, 3, and 5 are lit. If they are not, flash the latest Punk Confusion WebSerial UF2 and enter the loader again."));
       }, timeoutMs)
     };
     serialWaiters.push(waiter);
@@ -282,8 +290,20 @@ connectButton.addEventListener("click", async () => {
 
   port = await navigator.serial.requestPort();
   await port.open({ baudRate: 115200 });
-  log("Connected. If LEDs 1, 3, and 5 are lit, you can send sounds now.");
+  loaderGreetingSeen = false;
+  clearTimeout(firmwareCheckTimer);
+  log("Connected. Checking the card firmware...");
+  setFirmwareNotice("Connected. Waiting for the Punk Confusion sample loader to identify itself...", "warn");
   readSerial(port);
+  firmwareCheckTimer = setTimeout(() => {
+    if (!loaderGreetingSeen) {
+      setFirmwareNotice(
+        "The card connected, but this page has not seen the Punk Confusion WebSerial loader. Flash the latest WebSerial UF2, then hold the switch down while resetting so LEDs 1, 3, and 5 stay lit.",
+        "warn"
+      );
+      appendLog("Firmware check: loader greeting not seen. If uploads do not start, update the card with the latest Punk Confusion WebSerial UF2.");
+    }
+  }, 4500);
   updateSummary();
 });
 
@@ -300,6 +320,11 @@ async function readSerial(serialPort) {
         if (value) {
           const text = decoder.decode(value, { stream: true }).trimEnd();
           appendLog(text);
+          if (text.includes("PUNKCONF LOADER READY")) {
+            loaderGreetingSeen = true;
+            clearTimeout(firmwareCheckTimer);
+            setFirmwareNotice("Punk Confusion WebSerial loader detected. You can send sounds when all four slots are ready.", "ok");
+          }
           const match = text.match(/SAMPLE_BANK_BYTES\s+(\d+)/);
           if (match) {
             const targetKey = matchTargetFromBankSize(Number(match[1]));
@@ -330,6 +355,9 @@ uploadButton.addEventListener("click", async () => {
     writeU32(view, 4, bank.length);
 
     appendLog(`Starting upload of ${formatBytes(bank.length)}. Keep the card connected.`);
+    if (!loaderGreetingSeen) {
+      appendLog("I have not seen the WebSerial loader greeting yet. If this does not continue, flash the latest Punk Confusion WebSerial UF2 and enter the loader again.");
+    }
     const ready = waitForSerial(/OK SEND\s+\d+|ERR\s+\w+/, 10000);
     await writeToCard(command);
     const readyReply = await ready;
