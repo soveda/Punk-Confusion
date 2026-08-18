@@ -13,10 +13,10 @@ const targets = {
 };
 
 const slots = [
-  { venue: "Marquee", phrase: "Oi" },
-  { venue: "CBGB", phrase: "Hey Ho" },
-  { venue: "100 Club", phrase: "No Future" },
-  { venue: "Whisky a Go Go", phrase: "Let's Go" }
+  { venue: "Marquee", phrase: "Sample One" },
+  { venue: "CBGB", phrase: "Sample Two" },
+  { venue: "100 Club", phrase: "Sample Three" },
+  { venue: "Whisky a Go Go", phrase: "Sample Four" }
 ];
 
 const state = slots.map(() => null);
@@ -158,6 +158,20 @@ function buildBank() {
   return bank;
 }
 
+function updateSampleStatus(ready, totalBytes, target) {
+  if (port || uploadInProgress) return;
+
+  if (ready.length === 0) {
+    log("Waiting for samples. Add four short sounds, one for each slot.");
+  } else if (totalBytes > target.bankBytes) {
+    log(`Your sounds are too large for the ${target.label}. Shorten them or choose the 16 MB build.`);
+  } else if (ready.length < SAMPLE_COUNT) {
+    log(`${ready.length} of ${SAMPLE_COUNT} samples ready. Add ${SAMPLE_COUNT - ready.length} more.`);
+  } else {
+    log("All four samples are ready. Connect the card when LEDs 1, 3, and 5 are lit.");
+  }
+}
+
 function updateSummary() {
   const ready = state.filter(Boolean);
   const payloadBytes = ready.reduce((sum, item) => sum + item.encoded.length, 0);
@@ -176,6 +190,7 @@ function updateSummary() {
     uploadButton.disabled = true;
     restoreButton.disabled = true;
   }
+  updateSampleStatus(ready, totalBytes, target);
 }
 
 function notifySerialWaiters(text) {
@@ -230,6 +245,7 @@ async function handleFile(index, file, node) {
   const info = node.querySelector(".info");
   const audio = node.querySelector("audio");
   info.textContent = "Decoding...";
+  if (!port) log(`Preparing ${slots[index].phrase}...`);
 
   const decoded = await decodeAudio(file);
   const mono = await resampleMono(decoded);
